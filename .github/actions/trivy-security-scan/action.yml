@@ -1,0 +1,252 @@
+name: 'Trivy Security Scan'
+description: 'Comprehensive Docker image security scanning with Trivy, including vulnerability reporting and PR comments'
+author: 'Smart Data Foundry'
+
+inputs:
+  image-ref:
+    description: 'Docker image reference to scan (e.g., ghcr.io/user/repo:tag)'
+    required: true
+  
+  registry:
+    description: 'Container registry URL'
+    required: false
+    default: 'ghcr.io'
+    
+  severity:
+    description: 'Comma-separated list of severities to scan for'
+    required: false
+    default: 'CRITICAL,HIGH'
+    
+  detailed-severity:
+    description: 'Comma-separated list of severities for detailed JSON report'
+    required: false
+    default: 'CRITICAL,HIGH,MEDIUM,LOW'
+    
+  ignore-unfixed:
+    description: 'Ignore vulnerabilities with no available fix'
+    required: false
+    default: 'true'
+    
+  exit-code:
+    description: 'Exit code when vulnerabilities are found'
+    required: false
+    default: '0'
+    
+  artifact-name:
+    description: 'Name for the artifact containing scan results'
+    required: false
+    default: 'trivy-scan-results'
+    
+  artifact-retention-days:
+    description: 'Number of days to retain the scan results artifact'
+    required: false
+    default: '30'
+    
+  github-token:
+    description: 'GitHub token for commenting on PRs'
+    required: false
+    default: ${{ github.token }}
+    
+  post-pr-comment:
+    description: 'Whether to post scan results as PR comment'
+    required: false
+    default: 'true'
+
+outputs:
+  scan-status:
+    description: 'Status of the security scan (success or vulnerabilities_found)'
+    value: ${{ steps.process-results.outputs.trivy_status }}
+    
+  vulnerability-count:
+    description: 'Total number of vulnerabilities found'
+    value: ${{ steps.process-results.outputs.vulnerability_count }}
+    
+  artifact-id:
+    description: 'ID of the uploaded artifact containing scan results'
+    value: ${{ steps.upload-results.outputs.artifact-id }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Trivy vulnerability scanner (table format)
+      uses: aquasecurity/trivy-action@0.32.0
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        format: 'table'
+        output: 'trivy-scan-table.txt'
+        severity: ${{ inputs.severity }}
+        ignore-unfixed: ${{ inputs.ignore-unfixed }}
+        exit-code: ${{ inputs.exit-code }}
+
+    - name: Run Trivy for detailed JSON report
+      uses: aquasecurity/trivy-action@0.32.0
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        format: 'json'
+        output: 'trivy-scan-detailed.json'
+        severity: ${{ inputs.detailed-severity }}
+        ignore-unfixed: ${{ inputs.ignore-unfixed }}
+        exit-code: ${{ inputs.exit-code }}
+        skip-setup-trivy: true
+
+    - name: Process scan results and create summary
+      id: process-results
+      shell: bash
+      run: |
+        # Set image name for summary
+        IMAGE_NAME="${{ inputs.image-ref }}"
+        
+        # Get image information
+        DIGEST=$(docker inspect --format '{{.Id}}' "$IMAGE_NAME" | cut -d'@' -f2 || echo "unknown")
+        CREATED=$(docker inspect --format='{{.Created}}' "$IMAGE_NAME" | cut -d'T' -f1 || echo "unknown")
+        
+        echo "Image: $IMAGE_NAME"
+        echo "Digest: $DIGEST"
+        echo "Created: $CREATED"
+        
+        # Create reports directory and move files
+        mkdir -p trivy-reports
+        mv trivy-scan-table.txt trivy-reports/
+        mv trivy-scan-detailed.json trivy-reports/
+        
+        # Check if vulnerabilities were found by examining the JSON report
+        VULN_COUNT=$(jq -r '.Results[]?.Vulnerabilities // [] | length' trivy-reports/trivy-scan-detailed.json | awk '{sum += $1} END {print sum}')
+        
+        if [ "$VULN_COUNT" = "0" ] || [ -z "$VULN_COUNT" ]; then
+          TRIVY_STATUS="✅ No critical or high vulnerabilities found"
+          echo "trivy_status=success" >> $GITHUB_OUTPUT
+        else
+          TRIVY_STATUS="⚠️ Vulnerabilities found (see details in artifacts)"
+          echo "trivy_status=vulnerabilities_found" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "vulnerability_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+        
+        # Create detailed summary report (for artifacts)
+        echo "# Trivy Security Scan Report  " > trivy-reports/scan-summary.md
+        echo "" >> trivy-reports/scan-summary.md
+        echo "**Image:** $IMAGE_NAME  " >> trivy-reports/scan-summary.md
+        echo "**Digest:** $DIGEST  " >> trivy-reports/scan-summary.md
+        echo "**Created:** $CREATED  " >> trivy-reports/scan-summary.md
+        echo "**Scan Status:** $TRIVY_STATUS  " >> trivy-reports/scan-summary.md
+        echo "**Vulnerabilities Found:** $VULN_COUNT  " >> trivy-reports/scan-summary.md
+        echo "" >> trivy-reports/scan-summary.md
+        echo "## Scan Results  " >> trivy-reports/scan-summary.md
+        echo '```  ' >> trivy-reports/scan-summary.md
+        cat trivy-reports/trivy-scan-table.txt >> trivy-reports/scan-summary.md
+        echo '```  ' >> trivy-reports/scan-summary.md
+        
+        # Create concise PR comment (to avoid GitHub's 65536 character limit)
+        echo "## 🔒 Trivy Security Scan Results  " > trivy-reports/pr-comment.md
+        echo "" >> trivy-reports/pr-comment.md
+        echo "**Status:** $TRIVY_STATUS  " >> trivy-reports/pr-comment.md
+        echo "**Vulnerabilities Found:** $VULN_COUNT critical/high severity issues  " >> trivy-reports/pr-comment.md
+        echo "" >> trivy-reports/pr-comment.md
+        
+        if [ "$VULN_COUNT" != "0" ] && [ -n "$VULN_COUNT" ]; then
+          echo "⚠️ **Action Required:** Critical or high severity vulnerabilities detected.  " >> trivy-reports/pr-comment.md
+          echo "" >> trivy-reports/pr-comment.md
+          
+          # Extract and format top 10 vulnerabilities from JSON
+          echo "**Top 10 Critical/High Severity Vulnerabilities:**  " >> trivy-reports/pr-comment.md
+          echo "" >> trivy-reports/pr-comment.md
+          echo "| Type | Package | Vulnerability | Severity | Fixed Version |" >> trivy-reports/pr-comment.md
+          echo "|------|---------|---------------|----------|---------------|" >> trivy-reports/pr-comment.md
+          
+            jq -r '
+            [.Results[]? | 
+             (.Type // "N/A") as $type |
+             (.Vulnerabilities // []) |
+             map(select(.Severity == "CRITICAL" or .Severity == "HIGH")) |
+             map(. + {ResultType: $type})] |
+            flatten |
+            sort_by(.Severity == "HIGH", .Severity == "CRITICAL") |
+            .[:10] |
+            .[] |
+            "| \(.ResultType) | \(.PkgName // "N/A") | \(.VulnerabilityID // "N/A") | \(.Severity // "N/A") | \(.FixedVersion // "Not available") |"
+            ' trivy-reports/trivy-scan-detailed.json >> trivy-reports/pr-comment.md
+          
+          echo "" >> trivy-reports/pr-comment.md
+          
+          if [ "$(grep -E "(CRITICAL|HIGH)" trivy-reports/trivy-scan-table.txt | wc -l)" -gt 10 ]; then
+            echo "... and $(($(grep -E "(CRITICAL|HIGH)" trivy-reports/trivy-scan-table.txt | wc -l) - 10)) more issues.  " >> trivy-reports/pr-comment.md
+            echo "" >> trivy-reports/pr-comment.md
+          fi
+        else
+          echo "✅ **No critical or high severity vulnerabilities found!**" >> trivy-reports/pr-comment.md
+          echo "" >> trivy-reports/pr-comment.md
+        fi
+        
+        echo "" >> trivy-reports/pr-comment.md
+        echo "**📊 Scan Details**  " >> trivy-reports/pr-comment.md
+        echo "" >> trivy-reports/pr-comment.md
+        echo "- **Image:** \`$IMAGE_NAME\`  " >> trivy-reports/pr-comment.md
+        echo "- **Scan Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')  " >> trivy-reports/pr-comment.md
+        echo "- **Total Vulnerabilities:** $VULN_COUNT  " >> trivy-reports/pr-comment.md
+        echo "" >> trivy-reports/pr-comment.md
+
+    - name: Upload scan results
+      id: upload-results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ${{ inputs.artifact-name }}-${{ github.sha }}
+        path: trivy-reports/
+        retention-days: ${{ inputs.artifact-retention-days }}
+
+    - name: Append run information to PR comment
+      if: github.event_name == 'pull_request' && inputs.post-pr-comment == 'true'
+      shell: bash
+      run: |
+        echo "" >> trivy-reports/pr-comment.md
+        echo "**Action Run:** [view run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})  " >> trivy-reports/pr-comment.md
+        echo "**Trivy Report:** [view report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload-results.outputs.artifact-id }})  " >> trivy-reports/pr-comment.md
+        echo ""  >> trivy-reports/pr-comment.md
+
+    - name: Comment scan results on PR
+      if: github.event_name == 'pull_request' && inputs.post-pr-comment == 'true'
+      uses: actions/github-script@v7
+      continue-on-error: true
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const path = 'trivy-reports/pr-comment.md';
+          if (fs.existsSync(path)) {
+            let summary = fs.readFileSync(path, 'utf8');
+            
+            // Check if comment is within GitHub's limit (65536 characters)
+            if (summary.length > 65000) {
+              console.log(`Comment too long (${summary.length} characters), truncating...`);
+              summary = summary.substring(0, 65000) + '\n\n... (truncated - see artifacts for full report)';
+            }
+            
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: summary
+              });
+              console.log('Successfully posted scan results comment');
+            } catch (error) {
+              console.error('Failed to post comment:', error.message);
+            }
+          } else {
+            console.log('PR comment file not found, skipping comment');
+          }
+
+    - name: Report scan results
+      shell: bash
+      run: |
+        if [ "${{ steps.process-results.outputs.trivy_status }}" = "vulnerabilities_found" ]; then
+          echo "⚠️ Critical or high vulnerabilities found. Check the Trivy scan results."
+          echo "Review the uploaded artifacts for details."
+          echo "Scan completed with vulnerabilities..."
+        else
+          echo "✅ Security scan completed successfully - no critical or high vulnerabilities found!"
+        fi
+
+branding:
+  icon: 'shield'
+  color: 'blue'

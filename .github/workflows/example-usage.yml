@@ -1,0 +1,122 @@
+# Example workflow showing how to use the Trivy Security Scan action
+# This file can be used as a template for other repositories
+
+name: Example - Docker Build and Security Scan
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-scan:
+    name: Build Docker Image and Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      attestations: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # Using the custom Trivy Security Scan action from this repository
+    - name: Security Scan
+      id: security-scan
+      uses: smartdatafoundry/income_volatility_pipeline/.github/actions/trivy-security-scan@main
+      with:
+        image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest'
+        registry: ${{ env.REGISTRY }}
+        severity: 'CRITICAL,HIGH'
+        detailed-severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+        ignore-unfixed: 'true'
+        exit-code: '0'
+        artifact-name: 'security-scan-results'
+        artifact-retention-days: '30'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        post-pr-comment: 'true'
+
+    # Optional: Handle scan results programmatically
+    - name: Process scan results
+      run: |
+        echo "Security scan status: ${{ steps.security-scan.outputs.scan-status }}"
+        echo "Vulnerabilities found: ${{ steps.security-scan.outputs.vulnerability-count }}"
+        echo "Artifact ID: ${{ steps.security-scan.outputs.artifact-id }}"
+        
+        # You can add custom logic here based on the scan results
+        if [ "${{ steps.security-scan.outputs.scan-status }}" = "vulnerabilities_found" ]; then
+          echo "⚠️ Security vulnerabilities detected!"
+          echo "Consider reviewing the security report before deploying."
+          
+          # Optionally, you could fail the build for critical vulnerabilities:
+          # if [ "${{ steps.security-scan.outputs.vulnerability-count }}" -gt "10" ]; then
+          #   echo "❌ Too many vulnerabilities found (> 10), failing build"
+          #   exit 1
+          # fi
+        else
+          echo "✅ No critical or high severity vulnerabilities found!"
+        fi
+
+    # Optional: Add a security gate for production deployments
+    - name: Security gate for production
+      if: github.ref == 'refs/heads/main' && steps.security-scan.outputs.scan-status == 'vulnerabilities_found'
+      run: |
+        echo "⚠️ Production deployment with vulnerabilities detected!"
+        echo "Please review security scan results before proceeding."
+        # Uncomment the next line to fail production deployments with vulnerabilities:
+        # exit 1
+
+    # Example of conditional deployment based on security scan
+    - name: Deploy to staging
+      if: github.ref == 'refs/heads/develop' && steps.security-scan.outputs.scan-status == 'success'
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        # Add your deployment logic here
+
+    - name: Deploy to production
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "🚀 Deploying to production environment..."
+        # Add your deployment logic here
+        # Note: This will deploy even with vulnerabilities unless the security gate above fails the build

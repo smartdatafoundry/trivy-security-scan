@@ -1,0 +1,75 @@
+name: Test Trivy Security Scan Action
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/actions/trivy-security-scan/**'
+      - '.github/workflows/test-trivy-action.yml'
+
+jobs:
+  test-action:
+    name: Test Security Scan Action
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+      actions: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Build test image
+      run: |
+        # Create a simple test Dockerfile with known vulnerabilities for testing
+        cat > test.Dockerfile << 'EOF'
+        FROM nginx:1.20
+        RUN apt-get update && apt-get install -y curl
+        EOF
+        
+        docker build -f test.Dockerfile -t test-image:latest .
+
+    - name: Test Security Scan Action
+      id: test-scan
+      uses: ./.github/actions/trivy-security-scan
+      with:
+        image-ref: 'test-image:latest'
+        severity: 'CRITICAL,HIGH'
+        artifact-name: 'test-scan-results'
+        post-pr-comment: 'false'  # Disable PR comments for tests
+
+    - name: Verify Action Outputs
+      run: |
+        echo "Scan Status: ${{ steps.test-scan.outputs.scan-status }}"
+        echo "Vulnerability Count: ${{ steps.test-scan.outputs.vulnerability-count }}"
+        echo "Artifact ID: ${{ steps.test-scan.outputs.artifact-id }}"
+        
+        # Basic validation
+        if [[ "${{ steps.test-scan.outputs.scan-status }}" =~ ^(success|vulnerabilities_found)$ ]]; then
+          echo "✅ Valid scan status returned"
+        else
+          echo "❌ Invalid scan status: ${{ steps.test-scan.outputs.scan-status }}"
+          exit 1
+        fi
+        
+        if [[ "${{ steps.test-scan.outputs.vulnerability-count }}" =~ ^[0-9]+$ ]]; then
+          echo "✅ Valid vulnerability count returned"
+        else
+          echo "❌ Invalid vulnerability count: ${{ steps.test-scan.outputs.vulnerability-count }}"
+          exit 1
+        fi
+
+    - name: Test Results Summary
+      run: |
+        echo "🧪 **Test Results**"
+        echo "- Action executed successfully"
+        echo "- All outputs are in expected format"
+        echo "- Scan completed with status: ${{ steps.test-scan.outputs.scan-status }}"
+        
+        if [ "${{ steps.test-scan.outputs.scan-status }}" = "success" ]; then
+          echo "- ✅ No vulnerabilities found in test image"
+        else
+          echo "- ⚠️ Vulnerabilities detected (expected for test image)"
+        fi
