@@ -64,7 +64,7 @@ jobs:
     # Using the custom Trivy Security Scan action from this repository
     - name: Security Scan
       id: security-scan
-      uses: smartdatafoundry/income_volatility_pipeline/.github/actions/trivy-security-scan@main
+      uses: smartdatafoundry/trivy-security-scan/.github/actions/trivy-security-scan@v1.0.0
       with:
         image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest'
         registry: ${{ env.REGISTRY }}
