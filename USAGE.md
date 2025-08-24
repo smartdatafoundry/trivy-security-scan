@@ -237,7 +237,7 @@ jobs:
 
 ```yaml
 - name: Security Scan
-  uses: smartdatafoundry/trivy-security-scan/.github/actions/trivy-security-scan@v1.0.0
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -256,7 +256,7 @@ jobs:
 
 ```yaml
 - name: Security Scan
-  uses: smartdatafoundry/trivy-security-scan/.github/actions/trivy-security-scan@v1.0.0
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: 'my-registry.com/${{ github.repository }}:latest'
     registry: 'my-registry.com'
@@ -273,7 +273,7 @@ jobs:
 uses: smartdatafoundry/trivy-security-scan/trivy-security-scan@main
 
 # ✅ Correct format
-uses: smartdatafoundry/trivy-security-scan/.github/actions/trivy-security-scan@v1.0.0
+uses: smartdatafoundry/trivy-security-scan@v1.0.0
 ```
 
 #### Issue: Permissions Error

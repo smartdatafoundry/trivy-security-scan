@@ -46,7 +46,7 @@ To use this action in other repositories, reference it using the GitHub reposito
 
 ```yaml
 - name: Security Scan
-  uses: smartdatafoundry/trivy-security-scan/.github/actions/trivy-security-scan@v1.0.0
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: 'ghcr.io/${{ github.repository }}:latest'
     github-token: ${{ secrets.GITHUB_TOKEN }}
