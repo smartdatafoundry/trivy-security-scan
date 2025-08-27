@@ -77,6 +77,7 @@ runs:
         severity: ${{ inputs.severity }}
         ignore-unfixed: ${{ inputs.ignore-unfixed }}
         exit-code: ${{ inputs.exit-code }}
+        timeout: 15m
 
     - name: Run Trivy for detailed JSON report
       uses: aquasecurity/trivy-action@0.32.0
@@ -87,6 +88,7 @@ runs:
         severity: ${{ inputs.detailed-severity }}
         ignore-unfixed: ${{ inputs.ignore-unfixed }}
         exit-code: ${{ inputs.exit-code }}
+        timeout: 15m
         skip-setup-trivy: true
 
     - name: Process scan results and create summary
