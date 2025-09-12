@@ -208,7 +208,7 @@ permissions:
 ### Action Not Found
 When referencing the action from external repositories, ensure:
 - The repository is public, or you have appropriate access permissions
-- The reference format is correct: `owner/repo/.github/actions/action-name@ref`
+- The reference format is correct: `owner/repo@ref`
 - The branch or tag reference exists
 
 ### Docker Image Not Found

@@ -247,7 +247,7 @@ jobs:
 
 ```yaml
 - name: Security Scan
-  uses: smartdatafoundry/income_volatility_pipeline/.github/actions/trivy-security-scan@v1.0.0
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
 ```
