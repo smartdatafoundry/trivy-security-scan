@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - '.github/actions/trivy-security-scan/**'
+      - 'action.yml'
       - '.github/workflows/test-trivy-action.yml'
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
 
     - name: Test Security Scan Action
       id: test-scan
-      uses: ./.github/actions/trivy-security-scan
+      uses: ./
       with:
         image-ref: 'test-image:latest'
         severity: 'CRITICAL,HIGH'
