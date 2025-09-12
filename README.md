@@ -17,7 +17,7 @@ A reusable GitHub Action for comprehensive Docker image security scanning using 
 
 ```yaml
 - name: Security Scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: 'ghcr.io/${{ github.repository }}:latest'
 ```
@@ -26,7 +26,7 @@ A reusable GitHub Action for comprehensive Docker image security scanning using 
 
 ```yaml
 - name: Security Scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: 'ghcr.io/${{ github.repository }}:latest'
     registry: 'ghcr.io'
@@ -115,7 +115,7 @@ jobs:
     
     - name: Security Scan
       id: security-scan
-      uses: ./.github/actions/trivy-security-scan
+      uses: smartdatafoundry/trivy-security-scan@v1.0.0
       with:
         image-ref: ${{ env.REGISTRY }}/${{ github.repository }}:latest
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -141,7 +141,7 @@ jobs:
 ```yaml
 - name: Security Scan
   if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: ${{ env.REGISTRY }}/${{ github.repository }}:latest
     severity: 'CRITICAL,HIGH'
@@ -151,7 +151,7 @@ jobs:
 
 ```yaml
 - name: Security Scan (Strict)
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: ${{ env.REGISTRY }}/${{ github.repository }}:latest
     exit-code: '1'  # Fail if vulnerabilities are found

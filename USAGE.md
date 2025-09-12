@@ -18,7 +18,7 @@ Add this step to your workflow after building your Docker image:
 
 ```yaml
 - name: Security Scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: 'ghcr.io/${{ github.repository }}:latest'
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -33,7 +33,7 @@ steps:
   # ... build your Docker image ...
   
   - name: Security Scan
-    uses: ./.github/actions/trivy-security-scan
+    uses: smartdatafoundry/trivy-security-scan@v1.0.0
     with:
       image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
 ```
@@ -42,7 +42,7 @@ steps:
 
 ```yaml
 - name: Security Scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
     severity: 'CRITICAL,HIGH,MEDIUM'
@@ -62,7 +62,7 @@ strategy:
     
 steps:
   - name: Security Scan - ${{ matrix.image }}
-    uses: ./.github/actions/trivy-security-scan
+    uses: smartdatafoundry/trivy-security-scan@v1.0.0
     with:
       image-ref: '${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}:latest'
       artifact-name: 'security-scan-${{ matrix.image }}'
@@ -73,7 +73,7 @@ steps:
 ```yaml
 - name: Security Scan
   if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
     severity: ${{ github.ref == 'refs/heads/main' && 'CRITICAL,HIGH,MEDIUM' || 'CRITICAL,HIGH' }}
@@ -83,7 +83,7 @@ steps:
 
 ```yaml
 - name: Security Scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
     artifact-name: 'security-report-${{ github.event_name }}-${{ github.run_number }}'
@@ -117,7 +117,7 @@ jobs:
     
     - name: Security Scan
       id: security-scan
-      uses: ./.github/actions/trivy-security-scan
+      uses: smartdatafoundry/trivy-security-scan@v1.0.0
       with:
         image-ref: 'myapp:latest'
         
@@ -135,7 +135,7 @@ jobs:
 ```yaml
 - name: Security Scan
   id: scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
 
@@ -169,7 +169,7 @@ jobs:
 ```yaml
 - name: Security Scan
   id: scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
     exit-code: '1'  # This will make Trivy exit with code 1 if vulnerabilities are found
@@ -187,7 +187,7 @@ jobs:
 ```yaml
 - name: Security Scan
   id: scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
 
@@ -209,7 +209,7 @@ jobs:
 ```yaml
 - name: Security Scan
   id: scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
 
@@ -298,7 +298,7 @@ permissions:
 
 # Then run the scan
 - name: Security Scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
 ```
@@ -307,7 +307,7 @@ permissions:
 ```yaml
 # Ensure you have the right permissions and token
 - name: Security Scan
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   with:
     image-ref: '${{ env.REGISTRY }}/${{ github.repository }}:latest'
     github-token: ${{ secrets.GITHUB_TOKEN }}  # Make sure this is set
@@ -318,7 +318,7 @@ permissions:
 
 ```yaml
 - name: Security Scan (Debug)
-  uses: ./.github/actions/trivy-security-scan
+  uses: smartdatafoundry/trivy-security-scan@v1.0.0
   env:
     ACTIONS_STEP_DEBUG: true
   with:
