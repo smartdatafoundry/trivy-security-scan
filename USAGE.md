@@ -327,7 +327,7 @@ permissions:
 
 ### Custom Trivy Version
 
-If you need a specific version of Trivy, you can fork the action and modify the `aquasecurity/trivy-action@0.32.0` reference to your desired version.
+If you need a specific version of Trivy, you can fork the action and modify the `aquasecurity/trivy-action@0.34.2` reference to your desired version.
 
 ## Best Practices
 
