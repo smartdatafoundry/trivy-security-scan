@@ -69,7 +69,7 @@ runs:
   using: 'composite'
   steps:
     - name: Run Trivy vulnerability scanner (table format)
-      uses: aquasecurity/trivy-action@0.32.0
+      uses: aquasecurity/trivy-action@0.34.2
       with:
         image-ref: ${{ inputs.image-ref }}
         format: 'table'
@@ -80,7 +80,7 @@ runs:
         timeout: 15m
 
     - name: Run Trivy for detailed JSON report
-      uses: aquasecurity/trivy-action@0.32.0
+      uses: aquasecurity/trivy-action@0.34.2
       with:
         image-ref: ${{ inputs.image-ref }}
         format: 'json'
