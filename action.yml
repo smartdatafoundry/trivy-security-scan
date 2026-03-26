@@ -80,7 +80,7 @@ runs:
         timeout: 15m
 
     - name: Run Trivy for detailed JSON report
-      uses: aquasecurity/trivy-action@0.34.2
+      uses: aquasecurity/trivy-action@0.35.0
       with:
         image-ref: ${{ inputs.image-ref }}
         format: 'json'
